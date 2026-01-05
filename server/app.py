@@ -13,9 +13,10 @@ app.config["SQLALCHEMY_DATABASE_URI"] = DATABASE
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 app.json.compact = False
 
+db.init_app(app)
+
 migrate = Migrate(app, db)
 
-db.init_app(app)
 
 api = Api(app)
 
@@ -25,28 +26,31 @@ def index():
     return "<h1>Code challenge</h1>"
 
 
-class Restaurant ( Resource ) :
-    def get_restaurant ( self ) :
+class RestaurantList ( Resource ) :
+    def get ( self ) :
         restaurants = [restaurant.to_dict() for restaurant in Restaurant.query.all()]
         return make_response( jsonify(restaurants), 200 )
 
-api.add_resource(Restaurant, '/restaurants', endpoint='restaurants')
+api.add_resource(RestaurantList, '/restaurants', endpoint='restaurants')
 
 class RestaurantById ( Resource ) :
-    def restaurant_by_id ( self, id ) :
-        restaurant_match = [ Restaurant.query.filter_by(id=id).first().to_dict() ]
+    def get ( self, id ) :
 
-        if restaurant_match :
-            return make_response( jsonify(restaurant_match), 200 )
+        # restaurant_match = [ Restaurant.query.filter_by(id=id).first().to_dict() ]
+        # restaurant = Restaurant.query.filter_by(id=id).first()
+        restaurant = Restaurant.query.get(id)
+
+        if restaurant :
+            return make_response( jsonify(restaurant.to_dict()), 200 )
         else :
             return make_response ( {"error": "Restaurant not found"}, 404 )
     
-    def delete_by_id ( self, id ) :
+    def delete ( self, id ) :
         restaurant_match = Restaurant.query.filter_by(id=id).first()
         if restaurant_match :
             db.session.delete(restaurant_match)
             db.session.commit()
-            return make_response ( [], 200)
+            return make_response ( '', 204)
         else :
             return make_response ( {"error": "Restaurant not found"}, 404 )
 
@@ -54,36 +58,46 @@ api.add_resource( RestaurantById, '/restaurants/<int:id>', endpoint='restaurant_
 
 
 
-class Pizza ( Resource ) :
-    def get_pizza ( self ) :
-        pizzas = [pizza.to_dict() for pizzas in Pizza.query.all()]
+class PizzaList ( Resource ) :
+    def get ( self ) :
+        pizzas = [pizza.to_dict() for pizza in Pizza.query.all()]
         return make_response( jsonify(pizzas), 200 )
 
-api.add_resource(Pizza, '/pizzas', endpoint='pizzas')
+api.add_resource(PizzaList, '/pizzas', endpoint='pizzas')
 
 
 
-class RestaurantPizza ( Resource ) :
+class RestaurantPizzaCreate ( Resource ) :
     def post ( self ) :
-        new_record = RestaurantPizza (
-            price = request.get_json()['price'],
-            pizza_id = request.get_json()['pizza_id'],
-            restaurant_id = request.get_json()['restaurant_id']
-        )
-        db.session.add(new_record)
-        db.session.commit()
+        try :
+            data = request.get_json()
+            new_record = RestaurantPizza (
+                price = data['price'],
+                pizza_id = data['pizza_id'],
+                restaurant_id = data['restaurant_id'])
+
+            db.session.add(new_record)
+            db.session.commit()
+
+            return make_response( jsonify(new_record.to_dict()), 201)
+        except Exception as e :
+            return make_response(
+                jsonify({"errors": ["validation errors"]}),
+                400
+            )
         
-        response_body =new_record.to_dict()
-        response = make_response ( jsonify(response_body), 201 )
+        # response_body =new_record.to_dict()
+        # response = make_response ( jsonify(response_body), 201 )
 
         # NEEDS FIX
-        if new_record != None :
-            response = make_response ( jsonify(response_body), 201 )
-        else :
-            response = make_response ( jsonify(response_body), 400 )
-        return response
+        # if new_record != None :
+        #     response = make_response ( jsonify(response_body), 201 )
+        # else :
+        #     response = make_response ( jsonify(response_body), 400 )
+        # return response
+        # return make_response( jsonify(new_record.to_dict()), 201)
 
-api.add_resource( RestaurantPizza, '/restaurantpizza', endpoint='restaurantpizza')
+api.add_resource( RestaurantPizzaCreate, '/restaurant_pizzas', endpoint='restaurant_pizzas')
 
 
 
